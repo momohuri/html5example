@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+<header>
+    <h1>My super duper page</h1>
+
+</header>
+<div role="main">
+    <h4> Some information about you : </h4>
+    <ul>
+        <li>Your device orientation : <span id="orientation"></span></li>
+        <li data-position="userPosition">
+            lat :<span id="lat"></span> <br>
+            long :<span id="long"></span> <br>
+            Even your speed : <span id="speed"></span>
+        </li>
+    </ul>
+
+
+    <h4>Let's play with a DB </h4>
+
+    <form>
+
+        Input phone : <input id="phone" type="phone">
+        Input date :<input id="date" type="date">
+        <input type="submit">
+    </form>
+
+    <ul id="todoItems">
+
+    </ul>
+</div>
+
+
+<aside role="complementary">
+    <h5> Sockets</h5>
+    <ul>
+        <li>We have <span id="iPhone"> 0 </span> iPhones connected</li>
+        <li>We have <span id="android"> 0 </span> Android connected</li>
+    </ul>
+</aside>
+<aside role="worker">
+    <h5>My Worker Progress</h5>
+    <progress value="0" max="100">
+    </progress>
+    <span id="progress"></span>
+
+</aside>
+
+
+<footer>
+    <p> All rights reserved to me ! </p>
+</footer>
+
+</body>
+<script>
+
+    // Socket
+    io = io.connect()
+    // Emit ready event.
+    io.emit('ready', navigator.userAgent);
+    // Listen for the new user.
+    io.on('newUser', function (data) {
+        if (data.device === 'iPhone' || data.device === 'android') {
+            document.getElementById(data.device).innerHTML = parseInt(document.getElementById(data.device).innerHTML) + 1
+        }
+    })
+
+
+    //orientation
+    var myOrientation='portrait';
+    switch (window.orientation) {
+        case 0:
+            myOrientation = 'portrait';
+            break;
+        case 90:
+            myOrientation = 'landscape';
+            break;
+        case -90:
+            myOrientation = 'landscape';
+            break;
+
+    }
+    document.querySelector('#orientation').innerHTML = myOrientation;
+
+    //localisation
+    navigator.geolocation.getCurrentPosition(function (position) {
+        document.querySelector('li #lat').innerHTML = position.coords.latitude;
+        document.querySelector('li #long').innerHTML = position.coords.longitude;
+        document.querySelector('li #speed').innerHTML = position.coords.speed;
+    });
+
+    //worker
+    var worker = new Worker('while.js');
+    worker.addEventListener('message', function (e) {
+        document.querySelector('progress').value = e.data;
+        document.querySelector('#progress').innerHTML = e.data;
+
+    }, false);
+    worker.postMessage('hello workers');
+
+
+    //db exemple
+    var html5rocks = {};
+    html5rocks.webdb = {};
+
+    html5rocks.webdb.open = function () {
+        var dbSize = 5 * 1024 * 1024; // 5MB
+        html5rocks.webdb.db = openDatabase("myDb", "1.0", "my first database !", dbSize);
+    }
+
+    html5rocks.webdb.onError = function (tx, e) {
+        alert("There has been an error: " + e.message);
+    }
+
+    html5rocks.webdb.onSuccess = function (tx, r) {
+        // re-render the data.
+        // loadTodoItems is defined in Step 4a
+        html5rocks.webdb.getAllTodoItems(loadTodoItems);
+    }
+
+    html5rocks.webdb.createTable = function () {
+        var db = html5rocks.webdb.db;
+        db.transaction(function (tx) {
+            tx.executeSql("CREATE TABLE IF NOT EXISTS " +
+                    "todo(ID INTEGER PRIMARY KEY ASC, todo TEXT, added_on DATETIME)", []);
+        });
+    }
+
+    html5rocks.webdb.addTodo = function (todoText) {
+        var db = html5rocks.webdb.db;
+        db.transaction(function (tx) {
+            var addedOn = new Date();
+            tx.executeSql("INSERT INTO todo(todo, added_on) VALUES (?,?)",
+                    [todoText, addedOn],
+                    html5rocks.webdb.onSuccess,
+                    html5rocks.webdb.onError);
+        });
+    }
+
+    function loadTodoItems(tx, rs) {
+        var rowOutput = "";
+        var todoItems = document.getElementById("todoItems");
+        for (var i = 0; i < rs.rows.length; i++) {
+            rowOutput += renderTodo(rs.rows.item(i));
+        }
+
+        todoItems.innerHTML = rowOutput;
+    }
+    function renderTodo(row) {
+        return "<li>" + row.todo +
+                " [<a href='javascript:void(0);' onclick='html5rocks.webdb.deleteTodo(" +
+                row.ID + ");'>Delete</a>]</li>";
+    }
+    html5rocks.webdb.getAllTodoItems = function (renderFunc) {
+        var db = html5rocks.webdb.db;
+        db.transaction(function (tx) {
+            tx.executeSql("SELECT * FROM todo", [], renderFunc,
+                    html5rocks.webdb.onError);
+        });
+    }
+    html5rocks.webdb.deleteTodo = function (id) {
+        var db = html5rocks.webdb.db;
+        db.transaction(function (tx) {
+            tx.executeSql("DELETE FROM todo WHERE ID=?", [id],
+                    html5rocks.webdb.onSuccess,
+                    html5rocks.webdb.onError);
+        });
+    }
+    html5rocks.webdb.open();
+    html5rocks.webdb.createTable();
+
+    document.querySelector('form').onsubmit = function () {
+        html5rocks.webdb.addTodo('Number ' + document.querySelector('#phone').value + ' date ' + document.querySelector('#date').value);
+        return false;
+    }
+
+
+</script>
+
+</html>
