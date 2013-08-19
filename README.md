@@ -3,10 +3,10 @@ html5example
 
 Need to have node instaled
 
-how to :
- git clone https://github.com/momohuri/html5example.git
- cd html5example
- npm install
- node app.js
+how to :<br>
+git clone https://github.com/momohuri/html5example.git <br>
+cd html5example <br>
+npm install <br>
+node app.js <br>
  
- localhost:3000
+go to localhost:3000
